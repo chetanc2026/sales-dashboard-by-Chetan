@@ -1,9 +1,16 @@
 import axios from 'axios';
 
+const getDefaultApiBaseUrl = () => {
+  if (typeof window !== 'undefined' && window.location?.hostname?.includes('vercel.app')) {
+    return 'https://sales-api-4f7h.onrender.com/api';
+  }
+  return 'http://localhost:5000/api';
+};
+
 const normalizeApiBaseUrl = (url) => {
   const trimmed = (url || '').replace(/\/+$/, '');
   if (!trimmed) {
-    return 'http://localhost:5000/api';
+    return getDefaultApiBaseUrl();
   }
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 };

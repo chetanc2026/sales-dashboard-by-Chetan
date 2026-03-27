@@ -33,18 +33,24 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
   };
 
   return (
-    <div className={`${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'} border-b shadow-sm p-4`}>
+    <div
+      className={`${
+        darkMode
+          ? 'bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 border-slate-700'
+          : 'bg-gradient-to-r from-white via-sky-50 to-amber-50 border-slate-200'
+      } border-b shadow-sm p-4`}
+    >
       <div className="flex items-center justify-between mb-4">
         {/* Menu Button */}
         <button
           onClick={onMenuClick}
-          className={`p-2 rounded hover:${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+          className={`p-2 rounded transition ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
         >
           ☰
         </button>
 
         {/* Title */}
-        <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+        <h1 className={`text-2xl font-extrabold tracking-tight ${darkMode ? 'text-white' : 'text-slate-900'}`}>
           Sales Analytics Dashboard
         </h1>
 
@@ -52,11 +58,11 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         <div className="flex items-center gap-3">
           <button
             onClick={onDarkModeToggle}
-            className={`p-2 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}
+            className={`p-2 rounded transition ${darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-white hover:bg-slate-100 border border-slate-200'}`}
           >
             {darkMode ? '☀️' : '🌙'}
           </button>
-          <button className={`p-2 rounded ${darkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+          <button className={`p-2 rounded transition ${darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-white hover:bg-slate-100 border border-slate-200'}`}>
             🔔
           </button>
         </div>
