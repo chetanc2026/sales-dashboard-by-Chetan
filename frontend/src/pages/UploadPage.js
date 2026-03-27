@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { dataAPI } from '../services/api';
 import toast from 'react-hot-toast';
 
-const UploadPage = ({ onUploadSuccess }) => {
+const UploadPage = ({ onUploadSuccess, embedded = false }) => {
   const [schema, setSchema] = useState(null);
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -67,12 +67,26 @@ const UploadPage = ({ onUploadSuccess }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-12 px-4">
+    <div className={`${embedded ? 'py-8 px-6' : 'min-h-screen bg-gray-100 py-12 px-4'}`}>
       <div className="max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Upload Sales Data</h1>
           <p className="text-lg text-gray-600">Import your Excel or CSV file to populate the dashboard</p>
+        </div>
+
+        <div className="mb-8 bg-yellow-50 border border-yellow-300 rounded-lg p-5">
+          <p className="font-semibold text-yellow-900 mb-2">Note: Your file must include these exact columns:</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-yellow-900">
+            <span>Region</span>
+            <span>State</span>
+            <span>City</span>
+            <span>Product</span>
+            <span>Sales</span>
+            <span>Revenue</span>
+            <span>Date</span>
+            <span>Units Sold</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

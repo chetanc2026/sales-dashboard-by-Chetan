@@ -107,7 +107,7 @@ const LoginPage = ({ onLoginSuccess }) => {
 
         {/* Footer */}
         <p className="text-center text-blue-200 mt-8 text-sm">
-          © 2024 Sales Dashboard. All rights reserved.
+          © 2026 Sales Dashboard by Chetan. All rights reserved.
         </p>
       </div>
     </div>
