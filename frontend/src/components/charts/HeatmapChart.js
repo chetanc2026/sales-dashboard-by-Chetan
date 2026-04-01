@@ -47,10 +47,10 @@ const HeatmapChart = ({ data, darkMode }) => {
       return darkMode ? '#334155' : '#e2e8f0';
     }
     const ratio = stateRevenue / maxRevenue;
-    if (ratio > 0.75) return '#b91c1c';
-    if (ratio > 0.5) return '#ea580c';
-    if (ratio > 0.25) return '#f59e0b';
-    return '#22c55e';
+    if (ratio > 0.75) return '#1d4ed8';
+    if (ratio > 0.5) return '#2563eb';
+    if (ratio > 0.25) return '#60a5fa';
+    return '#93c5fd';
   };
 
   return (
@@ -58,8 +58,8 @@ const HeatmapChart = ({ data, darkMode }) => {
       <h3 className="text-xl font-bold mb-4">🗺️ Regional Performance Map</h3>
       {data && data.length > 0 ? (
         <div>
-          <div className="w-full h-[420px] rounded-lg overflow-hidden border border-slate-300/40">
-            <ComposableMap projection="geoMercator" projectionConfig={{ center: [83, 23], scale: 900 }}>
+          <div className="w-full h-[420px] rounded-lg overflow-hidden border border-slate-300/40 bg-slate-50/40">
+            <ComposableMap projection="geoMercator" projectionConfig={{ center: [82, 22], scale: 680 }}>
               <Geographies geography={indiaStatesTopo}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
@@ -70,11 +70,11 @@ const HeatmapChart = ({ data, darkMode }) => {
                         key={geo.rsmKey}
                         geography={geo}
                         fill={getFillColor(stateRevenue)}
-                        stroke={darkMode ? '#0f172a' : '#ffffff'}
-                        strokeWidth={0.7}
+                        stroke={darkMode ? '#cbd5e1' : '#ffffff'}
+                        strokeWidth={1.2}
                         style={{
-                          default: { outline: 'none' },
-                          hover: { outline: 'none', fill: '#2563eb' },
+                          default: { outline: 'none', fillOpacity: 0.9, cursor: 'pointer' },
+                          hover: { outline: 'none', fill: '#1d4ed8', fillOpacity: 1 },
                           pressed: { outline: 'none' },
                         }}
                       >
