@@ -5,40 +5,29 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
   const [dateRange, setDateRange] = useState('all');
   const [referenceDate, setReferenceDate] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const loadReferenceDate = async () => {
-      try {
-        const response = await dashboardAPI.getData({});
-        const rows = Array.isArray(response.data?.data) ? response.data.data : [];
-        const sortedDates = rows
-          .map((row) => row.date)
-          .filter(Boolean)
-          .map((date) => new Date(date))
-          .filter((date) => !Number.isNaN(date.getTime()))
-          .sort((a, b) => a - b);
-
-        if (!cancelled && sortedDates.length > 0) {
-          setReferenceDate(sortedDates[sortedDates.length - 1]);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setReferenceDate(new Date());
-        }
+  const fetchLatestReferenceDate = useCallback(async () => {
+    try {
+      const response = await dashboardAPI.getData({ limit: 1 });
+      const rows = Array.isArray(response.data?.data) ? response.data.data : [];
+      const latestDate = rows[0]?.date ? new Date(rows[0].date) : new Date();
+      if (!Number.isNaN(latestDate.getTime())) {
+        setReferenceDate(latestDate);
+        return latestDate;
       }
-    };
-
-    loadReferenceDate();
-
-    return () => {
-      cancelled = true;
-    };
+      const fallbackDate = new Date();
+      setReferenceDate(fallbackDate);
+      return fallbackDate;
+    } catch (error) {
+      const fallbackDate = new Date();
+      setReferenceDate(fallbackDate);
+      return fallbackDate;
+    }
   }, []);
 
-  const handleDateRangeChange = useCallback((range) => {
+  const handleDateRangeChange = useCallback(async (range) => {
     setDateRange(range);
-    const endDate = referenceDate ? new Date(referenceDate) : new Date();
+    const latestReferenceDate = await fetchLatestReferenceDate();
+    const endDate = latestReferenceDate || (referenceDate ? new Date(referenceDate) : new Date());
     let startDate = new Date(endDate);
 
     switch (range) {
@@ -66,13 +55,28 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
       startDate: startDate.toISOString().split('T')[0],
       endDate: endDate.toISOString().split('T')[0],
     });
-  }, [filters, onFiltersChange, referenceDate]);
+  }, [fetchLatestReferenceDate, filters, onFiltersChange, referenceDate]);
+
+  useEffect(() => {
+    void fetchLatestReferenceDate();
+  }, [fetchLatestReferenceDate]);
 
   useEffect(() => {
     if (!filters.startDate && !filters.endDate) {
-      handleDateRangeChange('all');
+      void handleDateRangeChange('all');
     }
   }, [filters.startDate, filters.endDate, handleDateRangeChange]);
+
+  useEffect(() => {
+    const onDashboardDataUpdated = () => {
+      void handleDateRangeChange(dateRange);
+    };
+
+    window.addEventListener('dashboard-data-updated', onDashboardDataUpdated);
+    return () => {
+      window.removeEventListener('dashboard-data-updated', onDashboardDataUpdated);
+    };
+  }, [dateRange, handleDateRangeChange]);
 
   return (
     <div
@@ -121,7 +125,9 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         {['7days', '30days', '90days', 'ytd', 'all'].map((range) => (
           <button
             key={range}
-            onClick={() => handleDateRangeChange(range)}
+            onClick={() => {
+              void handleDateRangeChange(range);
+            }}
             className={`px-4 py-2 rounded text-sm font-medium transition ${
               dateRange === range
                 ? 'bg-blue-600 text-white'
