@@ -92,7 +92,7 @@ const buildFallbackDatasets = (rows) => {
     insights.push({
       type: 'positive',
       title: 'Top Performing Region',
-      message: `${topRegion} leads with $${Math.round(topRegionRevenue).toLocaleString()} in revenue`,
+      message: `${topRegion} leads with ${Math.round(topRegionRevenue)} in revenue`,
       icon: '🏆',
     });
   }
@@ -290,7 +290,7 @@ const DashboardGrid = ({ filters, darkMode }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <KPICard
             title="Total Revenue"
-            value={`$${(kpis.totalRevenue || 0).toFixed(0)}`}
+            value={`${(kpis.totalRevenue || 0).toFixed(0)}`}
             icon="💰"
             trend="+12.5%"
             darkMode={darkMode}
@@ -304,7 +304,7 @@ const DashboardGrid = ({ filters, darkMode }) => {
           />
           <KPICard
             title="Units Sold"
-            value={`${(kpis.totalUnits || 0).toLocaleString()}`}
+            value={`${(kpis.totalUnits || 0).toFixed(0)}`}
             icon="📦"
             trend="+15.3%"
             darkMode={darkMode}
