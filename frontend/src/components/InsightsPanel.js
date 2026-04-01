@@ -1,6 +1,13 @@
 import React from 'react';
 
 const InsightsPanel = ({ insights = [], darkMode }) => {
+  const toRupeeText = (value) => {
+    if (typeof value !== 'string') {
+      return value;
+    }
+    return value.replace(/\$/g, '₹');
+  };
+
   const getIconForType = (type) => {
     switch (type) {
       case 'positive':
@@ -43,10 +50,10 @@ const InsightsPanel = ({ insights = [], darkMode }) => {
                 <span className="text-2xl mr-3">{insight.icon || getIconForType(insight.type)}</span>
                 <div>
                   <p className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
-                    {insight.title}
+                    {toRupeeText(insight.title)}
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {insight.message}
+                    {toRupeeText(insight.message)}
                   </p>
                 </div>
               </div>
