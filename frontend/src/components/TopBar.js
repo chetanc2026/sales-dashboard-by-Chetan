@@ -1,9 +1,31 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { dashboardAPI } from '../services/api';
+import toast from 'react-hot-toast';
 
 const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeToggle }) => {
   const [dateRange, setDateRange] = useState('all');
   const [referenceDate, setReferenceDate] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const escapeCsvValue = (value) => {
+    const text = value === undefined || value === null ? '' : String(value);
+    if (/[",\n]/.test(text)) {
+      return `"${text.replace(/"/g, '""')}"`;
+    }
+    return text;
+  };
+
+  const triggerDownload = (filename, content) => {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  };
 
   const fetchLatestReferenceDate = useCallback(async () => {
     try {
@@ -56,6 +78,41 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
       endDate: endDate.toISOString().split('T')[0],
     });
   }, [fetchLatestReferenceDate, filters, onFiltersChange, referenceDate]);
+
+  const handleDownload = useCallback(async () => {
+    setDownloading(true);
+    try {
+      const response = await dashboardAPI.getData({ ...filters, limit: 1000 });
+      const rows = Array.isArray(response.data?.data)
+        ? response.data.data
+        : Array.isArray(response.data?.rows)
+        ? response.data.rows
+        : Array.isArray(response.data?.result)
+        ? response.data.result
+        : [];
+
+      if (!rows.length) {
+        toast.error('No data available to download');
+        return;
+      }
+
+      const headers = ['date', 'region', 'state', 'city', 'product', 'sales', 'units', 'revenue'];
+      const csv = [
+        headers.join(','),
+        ...rows.map((row) => headers.map((header) => {
+          const value = header === 'units' ? (row.units_sold ?? row.unitsSold) : row[header];
+          return escapeCsvValue(value);
+        }).join(',')),
+      ].join('\n');
+
+      triggerDownload('sales-dashboard-data.csv', csv);
+      toast.success('Download started');
+    } catch (error) {
+      toast.error('Failed to download data');
+    } finally {
+      setDownloading(false);
+    }
+  }, [filters]);
 
   useEffect(() => {
     void fetchLatestReferenceDate();
@@ -116,6 +173,22 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
             aria-label="Notifications"
           >
             🔔
+          </button>
+          <button
+            onClick={() => {
+              void handleDownload();
+            }}
+            disabled={downloading}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
+              downloading
+                ? 'opacity-70 cursor-not-allowed bg-slate-500 text-white'
+                : darkMode
+                ? 'bg-sky-600 hover:bg-sky-500 text-white'
+                : 'bg-sky-600 hover:bg-sky-700 text-white'
+            }`}
+            aria-label="Download current dashboard data as CSV"
+          >
+            {downloading ? 'Downloading…' : 'Download'}
           </button>
         </div>
       </div>
