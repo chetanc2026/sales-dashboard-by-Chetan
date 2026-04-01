@@ -1,90 +1,46 @@
 import React, { useMemo } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
-import indiaRegionsGeo from '../../data/indiaRegionsGeo.json';
+import indiaStatesTopo from '../../data/indiaStatesTopo.json';
 import { formatINRCompact } from '../../utils/numberFormat';
 
 const normalize = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z]/g, '');
 
-const REGION_ALIASES = {
-  north: 'North',
-  south: 'South',
-  east: 'East',
-  west: 'West',
-  central: 'Central',
-  northeast: 'Northeast',
-  northcentral: 'Central',
-  northindia: 'North',
-  southindia: 'South',
-  eastindia: 'East',
-  westindia: 'West',
-};
-
-const STATE_TO_REGION = {
-  andhrapradesh: 'South',
-  arunachalpradesh: 'Northeast',
-  assam: 'Northeast',
-  bihar: 'East',
-  chhattisgarh: 'Central',
-  delhi: 'North',
-  goa: 'West',
-  gujarat: 'West',
-  haryana: 'North',
-  himachalpradesh: 'North',
-  jharkhand: 'East',
-  karnataka: 'South',
-  kerala: 'South',
-  madhyapradesh: 'Central',
-  maharashtra: 'West',
-  manipur: 'Northeast',
-  meghalaya: 'Northeast',
-  mizoram: 'Northeast',
-  nagaland: 'Northeast',
-  odisha: 'East',
-  orissa: 'East',
-  punjab: 'North',
-  rajasthan: 'North',
-  sikkim: 'Northeast',
-  tamilnadu: 'South',
-  telangana: 'South',
-  tripura: 'Northeast',
-  uttarpradesh: 'North',
-  uttarakhand: 'North',
-  westbengal: 'East',
+const STATE_ALIASES = {
+  nctofdelhi: 'delhi',
+  nationalcapitalterritoryofdelhi: 'delhi',
+  orissa: 'odisha',
+  pondicherry: 'puducherry',
+  andamannicobar: 'andamannicobarislands',
+  andamannicobarisland: 'andamannicobarislands',
+  jammukashmir: 'jammuandkashmir',
+  dadranagarhaveli: 'dadraandnagarhavelianddamananddiu',
+  damandiu: 'dadraandnagarhavelianddamananddiu',
 };
 
 const getFeatureName = (properties) => (
   properties.name
-  || properties.NAME
-  || properties.name
+  || properties.NAME_1
+  || properties.st_nm
   || ''
 );
 
-const resolveRegion = (row) => {
-  const regionKey = normalize(row.region);
-  if (REGION_ALIASES[regionKey]) {
-    return REGION_ALIASES[regionKey];
-  }
-
-  const stateKey = normalize(row.state);
-  if (STATE_TO_REGION[stateKey]) {
-    return STATE_TO_REGION[stateKey];
-  }
-
-  return 'Central';
-};
+const normalizeStateKey = (value) => STATE_ALIASES[normalize(value)] || normalize(value);
 
 const HeatmapChart = ({ data, darkMode }) => {
-  const revenueByRegion = useMemo(() => {
+  const revenueByState = useMemo(() => {
     const map = new Map();
     for (const row of data || []) {
-      const key = resolveRegion(row);
+      const key = normalizeStateKey(row.state);
+      if (!key) {
+        continue;
+      }
       const revenue = Number(row.revenue) || 0;
       map.set(key, (map.get(key) || 0) + revenue);
     }
     return map;
   }, [data]);
 
-  const maxRevenue = Math.max(...Array.from(revenueByRegion.values()), 1);
+  const maxRevenue = Math.max(...Array.from(revenueByState.values()), 1);
 
   const getFillColor = (stateRevenue) => {
     if (!stateRevenue) {
@@ -104,16 +60,16 @@ const HeatmapChart = ({ data, darkMode }) => {
         <div>
           <div className="w-full h-[420px] rounded-lg overflow-hidden border border-slate-300/40">
             <ComposableMap projection="geoMercator" projectionConfig={{ center: [83, 23], scale: 900 }}>
-              <Geographies geography={indiaRegionsGeo}>
+              <Geographies geography={indiaStatesTopo}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
-                    const regionName = getFeatureName(geo.properties);
-                    const regionRevenue = revenueByRegion.get(regionName) || 0;
+                    const stateName = getFeatureName(geo.properties);
+                    const stateRevenue = revenueByState.get(normalizeStateKey(stateName)) || 0;
                     return (
                       <Geography
                         key={geo.rsmKey}
                         geography={geo}
-                        fill={getFillColor(regionRevenue)}
+                        fill={getFillColor(stateRevenue)}
                         stroke={darkMode ? '#0f172a' : '#ffffff'}
                         strokeWidth={0.7}
                         style={{
@@ -122,7 +78,7 @@ const HeatmapChart = ({ data, darkMode }) => {
                           pressed: { outline: 'none' },
                         }}
                       >
-                        <title>{`${regionName || 'Unknown'}: ${formatINRCompact(regionRevenue)}`}</title>
+                        <title>{`${stateName || 'Unknown'}: ${formatINRCompact(stateRevenue)}`}</title>
                       </Geography>
                     );
                   })
