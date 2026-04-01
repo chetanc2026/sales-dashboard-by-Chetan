@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import ErrorBoundary from './components/ErrorBoundary';
 import { Toaster } from 'react-hot-toast';
 
 const AppContent = () => {
@@ -13,7 +14,9 @@ const AppContent = () => {
   }
 
   return (
-    <DashboardPage currentPage={currentPage} onNavigate={setCurrentPage} />
+    <ErrorBoundary>
+      <DashboardPage currentPage={currentPage} onNavigate={setCurrentPage} />
+    </ErrorBoundary>
   );
 };
 

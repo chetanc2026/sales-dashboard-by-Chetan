@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import DashboardGrid from '../components/DashboardGrid';
@@ -13,15 +13,29 @@ const PlaceholderPage = ({ title, description }) => (
 
 const DashboardPage = ({ currentPage, onNavigate }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [filters, setFilters] = useState({
-    startDate: null,
-    endDate: null,
-    region: null,
-    state: null,
-    city: null,
-    product: null,
+  const [filters, setFilters] = useState(() => {
+    const saved = localStorage.getItem('dashboardFilters');
+    return saved ? JSON.parse(saved) : {
+      startDate: null,
+      endDate: null,
+      region: null,
+      state: null,
+      city: null,
+      product: null,
+    };
   });
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode');
+    return saved ? JSON.parse(saved) : false;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('darkMode', JSON.stringify(darkMode));
+  }, [darkMode]);
+
+  useEffect(() => {
+    localStorage.setItem('dashboardFilters', JSON.stringify(filters));
+  }, [filters]);
 
   const renderPageContent = () => {
     if (currentPage === 'upload') {

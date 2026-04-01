@@ -5,8 +5,15 @@ import ProductChart from './charts/ProductChart';
 import TrendChart from './charts/TrendChart';
 import HeatmapChart from './charts/HeatmapChart';
 import InsightsPanel from './InsightsPanel';
+import { KPICardSkeleton, ChartSkeleton, InsightsSkeleton } from './SkeletonLoaders';
 import { dashboardAPI } from '../services/api';
 import toast from 'react-hot-toast';
+
+const asArray = (value) => (Array.isArray(value) ? value : []);
+
+const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
+
+const getPayload = (settled) => (settled.status === 'fulfilled' ? settled.value?.data : null);
 
 const DashboardGrid = ({ filters, darkMode }) => {
   const [kpis, setKpis] = useState(null);
@@ -21,7 +28,7 @@ const DashboardGrid = ({ filters, darkMode }) => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [kpiRes, regionRes, prodRes, trendRes, heatmapRes, insightRes] = await Promise.all([
+        const [kpiRes, regionRes, prodRes, trendRes, heatmapRes, insightRes] = await Promise.allSettled([
           dashboardAPI.getKPIs(filters),
           dashboardAPI.getRegionSales(filters),
           dashboardAPI.getProductPerformance(filters),
@@ -30,12 +37,35 @@ const DashboardGrid = ({ filters, darkMode }) => {
           dashboardAPI.getInsights(filters),
         ]);
 
-        setKpis(kpiRes.data.kpis);
-        setRegionData(regionRes.data.data);
-        setProductData(prodRes.data.data);
-        setTrendData(trendRes.data.data);
-        setHeatmapData(heatmapRes.data.data);
-        setInsights(insightRes.data.insights);
+        const kpiPayload = getPayload(kpiRes);
+        const regionPayload = getPayload(regionRes);
+        const productPayload = getPayload(prodRes);
+        const trendPayload = getPayload(trendRes);
+        const heatmapPayload = getPayload(heatmapRes);
+        const insightPayload = getPayload(insightRes);
+
+        const kpiData = firstDefined(kpiPayload?.kpis, kpiPayload?.data?.kpis, kpiPayload?.data);
+        const regionDataValue = firstDefined(regionPayload?.data, regionPayload?.regions, regionPayload?.result);
+        const productDataValue = firstDefined(productPayload?.data, productPayload?.products, productPayload?.result);
+        const trendDataValue = firstDefined(trendPayload?.data, trendPayload?.trends, trendPayload?.result);
+        const heatmapDataValue = firstDefined(heatmapPayload?.data, heatmapPayload?.heatmap, heatmapPayload?.result);
+        const insightDataValue = firstDefined(insightPayload?.insights, insightPayload?.data?.insights, insightPayload?.data);
+
+        setKpis(kpiData || null);
+        setRegionData(asArray(regionDataValue));
+        setProductData(asArray(productDataValue));
+        setTrendData(asArray(trendDataValue));
+        setHeatmapData(asArray(heatmapDataValue));
+        setInsights(asArray(insightDataValue));
+
+        const failedCount = [kpiRes, regionRes, prodRes, trendRes, heatmapRes, insightRes]
+          .filter((item) => item.status === 'rejected').length;
+
+        if (failedCount === 6) {
+          toast.error('Failed to fetch dashboard data');
+        } else if (failedCount > 0) {
+          toast.error('Some dashboard sections failed to load');
+        }
       } catch (error) {
         toast.error('Failed to fetch dashboard data');
       } finally {
@@ -48,10 +78,31 @@ const DashboardGrid = ({ filters, darkMode }) => {
 
   if (loading) {
     return (
-      <div className={`flex items-center justify-center h-screen ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-        <div className="text-center">
-          <div className="text-4xl mb-4">📊</div>
-          <p className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Loading Dashboard...</p>
+      <div className={`p-6 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+        {/* KPI Skeletons */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          <KPICardSkeleton darkMode={darkMode} />
+          <KPICardSkeleton darkMode={darkMode} />
+          <KPICardSkeleton darkMode={darkMode} />
+        </div>
+
+        {/* Chart Skeletons */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+          <ChartSkeleton darkMode={darkMode} />
+          <ChartSkeleton darkMode={darkMode} />
+        </div>
+
+        {/* Trend and Insights Skeletons */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-2">
+            <ChartSkeleton darkMode={darkMode} />
+          </div>
+          <InsightsSkeleton darkMode={darkMode} />
+        </div>
+
+        {/* Heatmap Skeleton */}
+        <div className="grid grid-cols-1 gap-6">
+          <ChartSkeleton darkMode={darkMode} />
         </div>
       </div>
     );

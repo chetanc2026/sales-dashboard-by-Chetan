@@ -7,6 +7,7 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
 
   React.useEffect(() => {
     const fetchSchema = async () => {
@@ -19,6 +20,28 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
     };
     fetchSchema();
   }, []);
+
+  const validateFile = (fileToValidate) => {
+    if (!fileToValidate) return false;
+
+    // Check file size
+    if (fileToValidate.size > MAX_FILE_SIZE) {
+      toast.error(`File size exceeds maximum of 20MB. Your file is ${(fileToValidate.size / 1024 / 1024).toFixed(2)}MB`);
+      return false;
+    }
+
+    // Check file type
+    const validTypes = ['.csv', '.xlsx', '.xls'];
+    const fileName = fileToValidate.name.toLowerCase();
+    const hasValidExtension = validTypes.some((type) => fileName.endsWith(type));
+    
+    if (!hasValidExtension) {
+      toast.error('Only CSV, XLSX, and XLS files are supported');
+      return false;
+    }
+
+    return true;
+  };
 
   const handleDrag = (e) => {
     e.preventDefault();
@@ -36,13 +59,24 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
     setDragActive(false);
     const droppedFiles = e.dataTransfer.files;
     if (droppedFiles.length > 0) {
-      setFile(droppedFiles[0]);
+      const droppedFile = droppedFiles[0];
+      if (validateFile(droppedFile)) {
+        setFile(droppedFile);
+      } else {
+        setFile(null);
+      }
     }
   };
 
   const handleFileChange = (e) => {
     if (e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+      const selectedFile = e.target.files[0];
+      if (validateFile(selectedFile)) {
+        setFile(selectedFile);
+      } else {
+        setFile(null);
+        e.target.value = '';
+      }
     }
   };
 
@@ -55,15 +89,25 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
 
     setLoading(true);
     try {
-      await dataAPI.uploadFile(file);
-      toast.success('File uploaded successfully!');
+      const response = await dataAPI.uploadFile(file);
+      toast.success(`Successfully uploaded ${response.data.rowsInserted} rows!`);
       setFile(null);
       onUploadSuccess?.();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Upload failed');
+      const errorMessage = error.response?.data?.message || 'Upload failed';
+      toast.error(errorMessage);
+      console.error('Upload error:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return Math.round((bytes / Math.pow(k, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
   return (
@@ -87,6 +131,7 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
             <span>Date</span>
             <span>Units Sold</span>
           </div>
+          <p className="text-xs text-yellow-800 mt-3">✓ Maximum file size: 20MB | ✓ Supported formats: CSV, XLSX, XLS</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -127,6 +172,7 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
                   <p className="text-green-800">
                     ✅ <strong>{file.name}</strong> selected
                   </p>
+                  <p className="text-sm text-green-700">Size: {formatFileSize(file.size)}</p>
                 </div>
               )}
 

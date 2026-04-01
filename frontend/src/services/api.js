@@ -19,8 +19,10 @@ const API_BASE_URL = normalizeApiBaseUrl(process.env.REACT_APP_API_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
 });
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // Add token to requests
 api.interceptors.request.use((config) => {
@@ -34,7 +36,19 @@ api.interceptors.request.use((config) => {
 // Handle response errors
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
+    const config = error.config || {};
+    const method = (config.method || '').toLowerCase();
+    const status = error.response?.status;
+    const isTimeoutOrNetwork = error.code === 'ECONNABORTED' || !error.response;
+    const shouldRetry = method === 'get' && !config.__retried && (isTimeoutOrNetwork || status >= 500);
+
+    if (shouldRetry) {
+      config.__retried = true;
+      await sleep(800);
+      return api(config);
+    }
+
     if (error.response?.status === 401) {
       localStorage.removeItem('token');
       window.location.href = '/login';

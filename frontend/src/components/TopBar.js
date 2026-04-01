@@ -1,22 +1,25 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeToggle }) => {
-  const [dateRange, setDateRange] = useState('7days');
+  const [dateRange, setDateRange] = useState('all');
 
   const handleDateRangeChange = (range) => {
     setDateRange(range);
     const today = new Date();
-    let startDate;
+    let startDate = new Date(today);
 
     switch (range) {
       case '7days':
-        startDate = new Date(today.setDate(today.getDate() - 7));
+        startDate.setDate(startDate.getDate() - 7);
         break;
       case '30days':
-        startDate = new Date(today.setDate(today.getDate() - 30));
+        startDate.setDate(startDate.getDate() - 30);
+      case 'all':
+        startDate = new Date('2020-01-01');
+        break;
         break;
       case '90days':
-        startDate = new Date(today.setDate(today.getDate() - 90));
+        startDate.setDate(startDate.getDate() - 90);
         break;
       case 'ytd':
         startDate = new Date(today.getFullYear(), 0, 1);
@@ -32,6 +35,13 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
     });
   };
 
+  // Initialize with 30 days on mount
+  useEffect(() => {
+    if (!filters.startDate && !filters.endDate) {
+      handleDateRangeChange('all');
+    }
+  }, []);
+
   return (
     <div
       className={`${
@@ -45,6 +55,8 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         <button
           onClick={onMenuClick}
           className={`p-2 rounded transition ${darkMode ? 'hover:bg-slate-700' : 'hover:bg-slate-100'}`}
+          aria-label="Toggle sidebar menu"
+          aria-expanded="true"
         >
           ☰
         </button>
@@ -55,22 +67,26 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         </h1>
 
         {/* Right Controls */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3" role="toolbar" aria-label="Dashboard controls">
           <button
             onClick={onDarkModeToggle}
             className={`p-2 rounded transition ${darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-white hover:bg-slate-100 border border-slate-200'}`}
+            aria-label={`Switch to ${darkMode ? 'light' : 'dark'} mode`}
           >
             {darkMode ? '☀️' : '🌙'}
           </button>
-          <button className={`p-2 rounded transition ${darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-white hover:bg-slate-100 border border-slate-200'}`}>
+          <button 
+            className={`p-2 rounded transition ${darkMode ? 'bg-slate-700 hover:bg-slate-600' : 'bg-white hover:bg-slate-100 border border-slate-200'}`}
+            aria-label="Notifications"
+          >
             🔔
           </button>
         </div>
       </div>
 
       {/* Date Range Filter */}
-      <div className="flex gap-2">
-        {['7days', '30days', '90days', 'ytd'].map((range) => (
+      <div className="flex gap-2" role="group" aria-label="Date range filter">
+        {['7days', '30days', '90days', 'ytd', 'all'].map((range) => (
           <button
             key={range}
             onClick={() => handleDateRangeChange(range)}
@@ -81,11 +97,14 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
                 ? 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
+            aria-pressed={dateRange === range}
+            aria-label={`Filter by ${range === '7days' ? 'last 7 days' : range === '30days' ? 'last 30 days' : range === '90days' ? 'last 90 days' : 'year to date'}`}
           >
             {range === '7days' && 'Last 7 Days'}
             {range === '30days' && 'Last 30 Days'}
             {range === '90days' && 'Last 90 Days'}
             {range === 'ytd' && 'Year to Date'}
+            {range === 'all' && 'All Time'}
           </button>
         ))}
       </div>
