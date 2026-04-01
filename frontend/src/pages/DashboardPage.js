@@ -72,41 +72,6 @@ const DashboardPage = ({ currentPage, onNavigate }) => {
     return <DashboardGrid filters={filters} darkMode={darkMode} />;
   };
 
-  const renderPageContent = () => {
-    if (currentPage === 'upload') {
-      return <UploadPage embedded onUploadSuccess={() => onNavigate?.('dashboard')} />;
-    }
-
-    if (currentPage === 'settings') {
-      return (
-        <PlaceholderPage
-          title="Settings"
-          description="Settings module is connected. Add user, profile, and system settings here."
-        />
-      );
-    }
-
-    if (currentPage === 'reports') {
-      return (
-        <PlaceholderPage
-          title="Reports"
-          description="Reports module is connected. Add export and scheduled reporting here."
-        />
-      );
-    }
-
-    if (currentPage === 'analytics') {
-      return (
-        <PlaceholderPage
-          title="Analytics"
-          description="Analytics module is connected. Add advanced analysis views here."
-        />
-      );
-    }
-
-    return <DashboardGrid filters={filters} darkMode={darkMode} />;
-  };
-
   return (
     <div className={`flex h-screen ${darkMode ? 'bg-gray-900 text-white' : 'bg-gray-100'}`}>
       <Sidebar isOpen={sidebarOpen} currentPage={currentPage} onNavigate={onNavigate} />

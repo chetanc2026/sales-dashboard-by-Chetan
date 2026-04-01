@@ -1,34 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { dashboardAPI } from '../services/api';
+import React, { useState, useEffect } from 'react';
 
 const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeToggle }) => {
   const [dateRange, setDateRange] = useState('all');
-  const [referenceDate, setReferenceDate] = useState(null);
 
-  const fetchLatestReferenceDate = useCallback(async () => {
-    try {
-      const response = await dashboardAPI.getData({ limit: 1 });
-      const rows = Array.isArray(response.data?.data) ? response.data.data : [];
-      const latestDate = rows[0]?.date ? new Date(rows[0].date) : new Date();
-      if (!Number.isNaN(latestDate.getTime())) {
-        setReferenceDate(latestDate);
-        return latestDate;
-      }
-      const fallbackDate = new Date();
-      setReferenceDate(fallbackDate);
-      return fallbackDate;
-    } catch (error) {
-      const fallbackDate = new Date();
-      setReferenceDate(fallbackDate);
-      return fallbackDate;
-    }
-  }, []);
-
-  const handleDateRangeChange = useCallback(async (range) => {
+  const handleDateRangeChange = (range) => {
     setDateRange(range);
-    const latestReferenceDate = await fetchLatestReferenceDate();
-    const endDate = latestReferenceDate || (referenceDate ? new Date(referenceDate) : new Date());
-    let startDate = new Date(endDate);
+    const today = new Date();
+    let startDate = new Date(today);
 
     switch (range) {
       case '7days':
@@ -36,15 +14,15 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         break;
       case '30days':
         startDate.setDate(startDate.getDate() - 30);
+      case 'all':
+        startDate = new Date('2020-01-01');
+        break;
         break;
       case '90days':
         startDate.setDate(startDate.getDate() - 90);
         break;
       case 'ytd':
-        startDate = new Date(endDate.getFullYear(), 0, 1);
-        break;
-      case 'all':
-        startDate = new Date('2020-01-01');
+        startDate = new Date(today.getFullYear(), 0, 1);
         break;
       default:
         return;
@@ -53,30 +31,16 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
     onFiltersChange({
       ...filters,
       startDate: startDate.toISOString().split('T')[0],
-      endDate: endDate.toISOString().split('T')[0],
+      endDate: today.toISOString().split('T')[0],
     });
-  }, [fetchLatestReferenceDate, filters, onFiltersChange, referenceDate]);
+  };
 
-  useEffect(() => {
-    void fetchLatestReferenceDate();
-  }, [fetchLatestReferenceDate]);
-
+  // Initialize with 30 days on mount
   useEffect(() => {
     if (!filters.startDate && !filters.endDate) {
-      void handleDateRangeChange('all');
+      handleDateRangeChange('all');
     }
-  }, [filters.startDate, filters.endDate, handleDateRangeChange]);
-
-  useEffect(() => {
-    const onDashboardDataUpdated = () => {
-      void handleDateRangeChange(dateRange);
-    };
-
-    window.addEventListener('dashboard-data-updated', onDashboardDataUpdated);
-    return () => {
-      window.removeEventListener('dashboard-data-updated', onDashboardDataUpdated);
-    };
-  }, [dateRange, handleDateRangeChange]);
+  }, []);
 
   return (
     <div
@@ -125,9 +89,7 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         {['7days', '30days', '90days', 'ytd', 'all'].map((range) => (
           <button
             key={range}
-            onClick={() => {
-              void handleDateRangeChange(range);
-            }}
+            onClick={() => handleDateRangeChange(range)}
             className={`px-4 py-2 rounded text-sm font-medium transition ${
               dateRange === range
                 ? 'bg-blue-600 text-white'
@@ -136,7 +98,7 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
                 : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             }`}
             aria-pressed={dateRange === range}
-            aria-label={`Filter by ${range === '7days' ? 'last 7 days' : range === '30days' ? 'last 30 days' : range === '90days' ? 'last 90 days' : range === 'ytd' ? 'year to date' : 'all time'}`}
+            aria-label={`Filter by ${range === '7days' ? 'last 7 days' : range === '30days' ? 'last 30 days' : range === '90days' ? 'last 90 days' : 'year to date'}`}
           >
             {range === '7days' && 'Last 7 Days'}
             {range === '30days' && 'Last 30 Days'}

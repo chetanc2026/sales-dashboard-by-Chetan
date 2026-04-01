@@ -91,7 +91,6 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
     try {
       const response = await dataAPI.uploadFile(file);
       toast.success(`Successfully uploaded ${response.data.rowsInserted} rows!`);
-      window.dispatchEvent(new Event('dashboard-data-updated'));
       setFile(null);
       onUploadSuccess?.();
     } catch (error) {
