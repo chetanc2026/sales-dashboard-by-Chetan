@@ -49,6 +49,8 @@ const parseDate = (value) => {
   return dt.toISOString().slice(0, 10);
 };
 
+const INSERT_BATCH_SIZE = 500;
+
 async function ensureTables() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS sales_data (
@@ -200,11 +202,29 @@ router.post('/upload', upload.single('file'), async (req, res) => {
       await client.query('BEGIN');
 
       const userId = req.user?.id || 1;
-      for (const row of cleaned) {
+      for (let start = 0; start < cleaned.length; start += INSERT_BATCH_SIZE) {
+        const batch = cleaned.slice(start, start + INSERT_BATCH_SIZE);
+        const values = [];
+        const placeholders = batch.map((row, index) => {
+          const base = index * 9;
+          values.push(
+            row.region,
+            row.state,
+            row.city,
+            row.product,
+            row.sales,
+            row.revenue,
+            row.date,
+            row.unitsSold,
+            userId
+          );
+          return `($${base + 1}, $${base + 2}, $${base + 3}, $${base + 4}, $${base + 5}, $${base + 6}, $${base + 7}, $${base + 8}, $${base + 9})`;
+        });
+
         await client.query(
           `INSERT INTO sales_data (region, state, city, product, sales, revenue, date, units_sold, uploaded_by)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [row.region, row.state, row.city, row.product, row.sales, row.revenue, row.date, row.unitsSold, userId]
+           VALUES ${placeholders.join(', ')}`,
+          values
         );
       }
 
