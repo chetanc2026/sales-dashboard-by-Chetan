@@ -15,6 +15,107 @@ const firstDefined = (...values) => values.find((value) => value !== undefined &
 
 const getPayload = (settled) => (settled.status === 'fulfilled' ? settled.value?.data : null);
 
+const toNumber = (value) => {
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+};
+
+const hasItems = (value) => Array.isArray(value) && value.length > 0;
+
+const buildFallbackDatasets = (rows) => {
+  const regionMap = new Map();
+  const productMap = new Map();
+  const trendMap = new Map();
+  const heatmapMap = new Map();
+
+  for (const row of rows) {
+    const region = row.region || 'Unknown';
+    const product = row.product || 'Unknown';
+    const state = row.state || 'Unknown';
+    const revenue = toNumber(row.revenue);
+    const sales = toNumber(row.sales);
+    const units = toNumber(row.units_sold ?? row.unitsSold);
+    const date = new Date(row.date);
+    const monthKey = Number.isNaN(date.getTime())
+      ? 'Unknown'
+      : `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-01`;
+
+    if (!regionMap.has(region)) {
+      regionMap.set(region, { region, revenue: 0, sales: 0, units: 0, transactions: 0 });
+    }
+    const regionEntry = regionMap.get(region);
+    regionEntry.revenue += revenue;
+    regionEntry.sales += sales;
+    regionEntry.units += units;
+    regionEntry.transactions += 1;
+
+    if (!productMap.has(product)) {
+      productMap.set(product, { product, revenue: 0, units: 0, transactions: 0 });
+    }
+    const productEntry = productMap.get(product);
+    productEntry.revenue += revenue;
+    productEntry.units += units;
+    productEntry.transactions += 1;
+
+    if (!trendMap.has(monthKey)) {
+      trendMap.set(monthKey, { month: monthKey, value: 0 });
+    }
+    trendMap.get(monthKey).value += revenue;
+
+    const heatmapKey = `${region}::${state}`;
+    if (!heatmapMap.has(heatmapKey)) {
+      heatmapMap.set(heatmapKey, { region, state, revenue: 0, units: 0 });
+    }
+    const heatmapEntry = heatmapMap.get(heatmapKey);
+    heatmapEntry.revenue += revenue;
+    heatmapEntry.units += units;
+  }
+
+  const regionData = Array.from(regionMap.values()).sort((a, b) => b.revenue - a.revenue);
+  const productData = Array.from(productMap.values())
+    .map((item) => ({
+      ...item,
+      avgRevenue: item.transactions ? item.revenue / item.transactions : 0,
+    }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 12);
+  const trendData = Array.from(trendMap.values()).sort((a, b) => a.month.localeCompare(b.month));
+  const heatmapData = Array.from(heatmapMap.values()).sort((a, b) => b.revenue - a.revenue);
+
+  const totalRevenue = regionData.reduce((sum, item) => sum + item.revenue, 0);
+  const topRegion = regionData[0]?.region;
+  const topRegionRevenue = regionData[0]?.revenue || 0;
+  const uniqueProducts = productMap.size;
+  const insights = [];
+
+  if (topRegion) {
+    insights.push({
+      type: 'positive',
+      title: 'Top Performing Region',
+      message: `${topRegion} leads with $${Math.round(topRegionRevenue).toLocaleString()} in revenue`,
+      icon: '🏆',
+    });
+  }
+
+  if (totalRevenue > 500000) {
+    insights.push({
+      type: 'success',
+      title: 'Strong Revenue Performance',
+      message: 'Total revenue exceeds $500,000 threshold',
+      icon: '📈',
+    });
+  }
+
+  insights.push({
+    type: 'info',
+    title: 'Product Portfolio',
+    message: `${uniqueProducts} unique products in portfolio`,
+    icon: '📦',
+  });
+
+  return { regionData, productData, trendData, heatmapData, insights };
+};
+
 const formatDate = (dateValue) => {
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) {
@@ -94,12 +195,14 @@ const DashboardGrid = ({ filters, darkMode }) => {
         const insightDataValue = firstDefined(insightPayload?.insights, insightPayload?.data?.insights, insightPayload?.data);
         const rawDataRows = asArray(firstDefined(dataPayload?.data, dataPayload?.rows, dataPayload?.result));
 
+        const fallback = buildFallbackDatasets(rawDataRows);
+
         setKpis(kpiData || null);
-        setRegionData(asArray(regionDataValue));
-        setProductData(asArray(productDataValue));
-        setTrendData(asArray(trendDataValue));
-        setHeatmapData(asArray(heatmapDataValue));
-        setInsights(asArray(insightDataValue));
+        setRegionData(hasItems(regionDataValue) ? asArray(regionDataValue) : fallback.regionData);
+        setProductData(hasItems(productDataValue) ? asArray(productDataValue) : fallback.productData);
+        setTrendData(hasItems(trendDataValue) ? asArray(trendDataValue) : fallback.trendData);
+        setHeatmapData(hasItems(heatmapDataValue) ? asArray(heatmapDataValue) : fallback.heatmapData);
+        setInsights(hasItems(insightDataValue) ? asArray(insightDataValue) : fallback.insights);
         setDataSummary(getDataSummary(rawDataRows));
 
         const failedCount = [kpiRes, regionRes, prodRes, trendRes, heatmapRes, insightRes, dataRes]
