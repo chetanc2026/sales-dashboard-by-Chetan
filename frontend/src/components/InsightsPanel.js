@@ -1,7 +1,5 @@
 import React from 'react';
 
-const normalizeMessage = (message) => String(message || '').replace(/[₹$,]/g, '');
-
 const InsightsPanel = ({ insights = [], darkMode }) => {
   const getIconForType = (type) => {
     switch (type) {
@@ -48,7 +46,7 @@ const InsightsPanel = ({ insights = [], darkMode }) => {
                     {insight.title}
                   </p>
                   <p className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {normalizeMessage(insight.message)}
+                    {insight.message}
                   </p>
                 </div>
               </div>

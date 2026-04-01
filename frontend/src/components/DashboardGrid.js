@@ -7,6 +7,7 @@ import HeatmapChart from './charts/HeatmapChart';
 import InsightsPanel from './InsightsPanel';
 import { KPICardSkeleton, ChartSkeleton, InsightsSkeleton } from './SkeletonLoaders';
 import { dashboardAPI } from '../services/api';
+import { formatIndianCompact, formatINRCompact } from '../utils/numberFormat';
 import toast from 'react-hot-toast';
 
 const asArray = (value) => (Array.isArray(value) ? value : []);
@@ -92,7 +93,7 @@ const buildFallbackDatasets = (rows) => {
     insights.push({
       type: 'positive',
       title: 'Top Performing Region',
-      message: `${topRegion} leads with ${Math.round(topRegionRevenue)} in revenue`,
+      message: `${topRegion} leads with ${formatINRCompact(topRegionRevenue)} in revenue`,
       icon: '🏆',
     });
   }
@@ -101,7 +102,7 @@ const buildFallbackDatasets = (rows) => {
     insights.push({
       type: 'success',
       title: 'Strong Revenue Performance',
-      message: 'Total revenue exceeds $500,000 threshold',
+      message: `Total revenue exceeds ${formatINRCompact(500000)} threshold`,
       icon: '📈',
     });
   }
@@ -290,21 +291,21 @@ const DashboardGrid = ({ filters, darkMode }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <KPICard
             title="Total Revenue"
-            value={`${(kpis.totalRevenue || 0).toFixed(0)}`}
+            value={formatINRCompact(kpis.totalRevenue || 0)}
             icon="💰"
             trend="+12.5%"
             darkMode={darkMode}
           />
           <KPICard
             title="Total Sales"
-            value={`${(kpis.totalSales || 0).toFixed(0)}`}
+            value={formatIndianCompact(kpis.totalSales || 0)}
             icon="🛒"
             trend="+8.2%"
             darkMode={darkMode}
           />
           <KPICard
             title="Units Sold"
-            value={`${(kpis.totalUnits || 0).toFixed(0)}`}
+            value={formatIndianCompact(kpis.totalUnits || 0)}
             icon="📦"
             trend="+15.3%"
             darkMode={darkMode}
