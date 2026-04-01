@@ -19,7 +19,7 @@ const TrendChart = ({ data, darkMode }) => {
             <Tooltip
               contentStyle={{ backgroundColor: darkMode ? '#333' : '#fff' }}
               labelStyle={{ color: darkMode ? '#fff' : '#000' }}
-              formatter={(value) => `$${value.toFixed(0)}`}
+              formatter={(value) => `${Number(value).toFixed(0)}`}
             />
             <Legend />
             <Line
