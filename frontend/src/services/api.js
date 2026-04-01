@@ -24,6 +24,27 @@ const api = axios.create({
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+const normalizeDashboardParam = (value) => {
+  if (Array.isArray(value)) {
+    if (!value.length) {
+      return undefined;
+    }
+    return value.join(',');
+  }
+
+  if (value === '' || value === null || value === undefined) {
+    return undefined;
+  }
+
+  return value;
+};
+
+const buildDashboardParams = (filters = {}) => Object.fromEntries(
+  Object.entries(filters)
+    .map(([key, value]) => [key, normalizeDashboardParam(value)])
+    .filter(([, value]) => value !== undefined)
+);
+
 // Add token to requests
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('token');
@@ -75,13 +96,13 @@ export const dataAPI = {
 };
 
 export const dashboardAPI = {
-  getKPIs: (filters) => api.get('/dashboard/kpis', { params: filters }),
-  getRegionSales: (filters) => api.get('/dashboard/region-sales', { params: filters }),
-  getProductPerformance: (filters) => api.get('/dashboard/product-performance', { params: filters }),
-  getTrends: (filters) => api.get('/dashboard/trends', { params: filters }),
-  getGeoHeatmap: (filters) => api.get('/dashboard/geo-heatmap', { params: filters }),
-  getInsights: (filters) => api.get('/dashboard/insights', { params: filters }),
-  getData: (filters) => api.get('/dashboard/data', { params: filters }),
+  getKPIs: (filters) => api.get('/dashboard/kpis', { params: buildDashboardParams(filters) }),
+  getRegionSales: (filters) => api.get('/dashboard/region-sales', { params: buildDashboardParams(filters) }),
+  getProductPerformance: (filters) => api.get('/dashboard/product-performance', { params: buildDashboardParams(filters) }),
+  getTrends: (filters) => api.get('/dashboard/trends', { params: buildDashboardParams(filters) }),
+  getGeoHeatmap: (filters) => api.get('/dashboard/geo-heatmap', { params: buildDashboardParams(filters) }),
+  getInsights: (filters) => api.get('/dashboard/insights', { params: buildDashboardParams(filters) }),
+  getData: (filters) => api.get('/dashboard/data', { params: buildDashboardParams(filters) }),
 };
 
 export default api;

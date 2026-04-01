@@ -6,6 +6,27 @@ import UploadPage from './UploadPage';
 import ReportsModule from '../components/modules/ReportsModule';
 import AnalyticsModule from '../components/modules/AnalyticsModule';
 
+const normalizeSelection = (value) => {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean);
+  }
+
+  if (value === null || value === undefined || value === '') {
+    return [];
+  }
+
+  return [value];
+};
+
+const normalizePersistedFilters = (savedFilters) => ({
+  startDate: savedFilters?.startDate || null,
+  endDate: savedFilters?.endDate || null,
+  region: normalizeSelection(savedFilters?.region),
+  state: normalizeSelection(savedFilters?.state),
+  city: normalizeSelection(savedFilters?.city),
+  product: normalizeSelection(savedFilters?.product),
+});
+
 const PlaceholderPage = ({ title, description }) => (
   <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 text-center mt-8">
     <h1 className="text-3xl font-bold text-gray-900 mb-3">{title}</h1>
@@ -17,13 +38,13 @@ const DashboardPage = ({ currentPage, onNavigate }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [filters, setFilters] = useState(() => {
     const saved = localStorage.getItem('dashboardFilters');
-    return saved ? JSON.parse(saved) : {
+    return saved ? normalizePersistedFilters(JSON.parse(saved)) : {
       startDate: null,
       endDate: null,
-      region: null,
-      state: null,
-      city: null,
-      product: null,
+      region: [],
+      state: [],
+      city: [],
+      product: [],
     };
   });
   const [darkMode, setDarkMode] = useState(() => {

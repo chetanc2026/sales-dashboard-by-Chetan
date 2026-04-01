@@ -1,4 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import {
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  Cell,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import toast from 'react-hot-toast';
 import { dashboardAPI } from '../../services/api';
 import { formatIndianCompact, formatINRCompact } from '../../utils/numberFormat';
@@ -30,6 +42,38 @@ const downloadTextFile = (filename, content, mimeType) => {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+};
+
+const aggregateByKey = (rows, key, valueKey = 'revenue') => {
+  const buckets = new Map();
+
+  rows.forEach((row) => {
+    const bucketName = row[key] || 'Unknown';
+    const bucketValue = Number(row[valueKey]) || 0;
+    buckets.set(bucketName, (buckets.get(bucketName) || 0) + bucketValue);
+  });
+
+  return Array.from(buckets.entries())
+    .map(([name, value]) => ({ name, value }))
+    .sort((left, right) => right.value - left.value);
+};
+
+const aggregateByMonth = (rows) => {
+  const buckets = new Map();
+
+  rows.forEach((row) => {
+    const date = safeDate(row.date);
+    const monthKey = date ? date.toISOString().slice(0, 7) : 'Unknown';
+    const rowValue = Number(row.revenue) || 0;
+    buckets.set(monthKey, (buckets.get(monthKey) || 0) + rowValue);
+  });
+
+  return Array.from(buckets.entries())
+    .sort((left, right) => left[0].localeCompare(right[0]))
+    .map(([month, value]) => ({
+      month: month === 'Unknown' ? 'Unknown' : new Date(`${month}-01`).toLocaleDateString('en-US', { month: 'short', year: '2-digit' }),
+      value,
+    }));
 };
 
 const ReportsModule = ({ filters, darkMode }) => {
@@ -106,6 +150,24 @@ const ReportsModule = ({ filters, darkMode }) => {
     };
   }, [kpis, products, regions, rows]);
 
+  const chartData = useMemo(() => {
+    const monthlyRevenue = aggregateByMonth(rows).slice(-10);
+    const regionRevenue = regions.length > 0 ? regions.slice(0, 6).map((item) => ({
+      name: item.region,
+      value: Number(item.revenue) || 0,
+    })) : aggregateByKey(rows, 'region').slice(0, 6).map((item) => ({ name: item.name, value: item.value }));
+    const productRevenue = products.length > 0 ? products.slice(0, 6).map((item) => ({
+      name: item.product,
+      value: Number(item.revenue) || 0,
+    })) : aggregateByKey(rows, 'product').slice(0, 6).map((item) => ({ name: item.name, value: item.value }));
+
+    return {
+      monthlyRevenue,
+      regionRevenue,
+      productRevenue,
+    };
+  }, [products, regions, rows]);
+
   const exportCsv = () => {
     if (!rows.length) {
       toast.error('No data available to export');
@@ -139,6 +201,20 @@ const ReportsModule = ({ filters, darkMode }) => {
     downloadTextFile('sales-report-summary.txt', lines, 'text/plain;charset=utf-8');
   };
 
+  const exportReportJson = () => {
+    const payload = {
+      generatedAt: new Date().toISOString(),
+      filters,
+      summary: reportSummary,
+      rows: rows.slice(0, 100),
+      regions: regions.slice(0, 10),
+      products: products.slice(0, 10),
+    };
+
+    downloadTextFile('sales-report.json', JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+    toast.success('Report exported as JSON');
+  };
+
   return (
     <div className={`p-6 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
       <div className={`rounded-3xl p-6 shadow-lg border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'}`}>
@@ -163,6 +239,12 @@ const ReportsModule = ({ filters, darkMode }) => {
               className={`px-4 py-2 rounded-lg font-semibold border transition ${darkMode ? 'border-slate-600 bg-slate-800 hover:bg-slate-700' : 'border-slate-300 bg-white hover:bg-slate-50'}`}
             >
               Download Summary
+            </button>
+            <button
+              onClick={exportReportJson}
+              className={`px-4 py-2 rounded-lg font-semibold border transition ${darkMode ? 'border-slate-600 bg-slate-800 hover:bg-slate-700' : 'border-slate-300 bg-white hover:bg-slate-50'}`}
+            >
+              Export JSON
             </button>
           </div>
         </div>
@@ -219,6 +301,52 @@ const ReportsModule = ({ filters, darkMode }) => {
                 darkMode={darkMode}
               />
             </div>
+
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mt-6">
+              <ChartCard title="Monthly Revenue" darkMode={darkMode}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <AreaChart data={chartData.monthlyRevenue}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                    <XAxis dataKey="month" stroke={darkMode ? '#94a3b8' : '#64748b'} />
+                    <YAxis stroke={darkMode ? '#94a3b8' : '#64748b'} tickFormatter={(value) => formatIndianCompact(value)} />
+                    <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1f2937' : '#ffffff', border: 'none', borderRadius: 10 }} formatter={(value) => formatINRCompact(value)} />
+                    <Area type="monotone" dataKey="value" stroke="#0ea5e9" fill="#0ea5e933" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              <ChartCard title="Region Revenue" darkMode={darkMode}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={chartData.regionRevenue}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                    <XAxis dataKey="name" stroke={darkMode ? '#94a3b8' : '#64748b'} angle={-20} textAnchor="end" height={60} interval={0} />
+                    <YAxis stroke={darkMode ? '#94a3b8' : '#64748b'} tickFormatter={(value) => formatIndianCompact(value)} />
+                    <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1f2937' : '#ffffff', border: 'none', borderRadius: 10 }} formatter={(value) => formatINRCompact(value)} />
+                    <Bar dataKey="value" fill="#3b82f6">
+                      {chartData.regionRevenue.map((entry, index) => (
+                        <Cell key={entry.name} fill={['#3b82f6', '#0ea5e9', '#8b5cf6', '#f59e0b', '#10b981', '#ef4444'][index % 6]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+
+              <ChartCard title="Product Revenue" darkMode={darkMode}>
+                <ResponsiveContainer width="100%" height={260}>
+                  <BarChart data={chartData.productRevenue}>
+                    <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#334155' : '#e2e8f0'} />
+                    <XAxis dataKey="name" stroke={darkMode ? '#94a3b8' : '#64748b'} angle={-20} textAnchor="end" height={60} interval={0} />
+                    <YAxis stroke={darkMode ? '#94a3b8' : '#64748b'} tickFormatter={(value) => formatIndianCompact(value)} />
+                    <Tooltip contentStyle={{ backgroundColor: darkMode ? '#1f2937' : '#ffffff', border: 'none', borderRadius: 10 }} formatter={(value) => formatINRCompact(value)} />
+                    <Bar dataKey="value" fill="#14b8a6">
+                      {chartData.productRevenue.map((entry, index) => (
+                        <Cell key={entry.name} fill={['#14b8a6', '#22c55e', '#84cc16', '#eab308', '#f97316', '#ef4444'][index % 6]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartCard>
+            </div>
           </>
         )}
       </div>
@@ -257,6 +385,13 @@ const ListPanel = ({ title, items, darkMode }) => (
         <p className={darkMode ? 'text-slate-400' : 'text-slate-500'}>No data available</p>
       )}
     </div>
+  </div>
+);
+
+const ChartCard = ({ title, darkMode, children }) => (
+  <div className={`rounded-2xl p-5 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+    <h3 className="text-lg font-bold mb-4">{title}</h3>
+    {children}
   </div>
 );
 
