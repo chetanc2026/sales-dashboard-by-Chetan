@@ -273,14 +273,18 @@ router.get('/data', async (req, res) => {
     await ensureTables();
     const userId = req.user?.id || 1;
     const { whereSql, params } = buildFilter(req.query, userId);
+    const requestedLimit = Number.parseInt(req.query.limit || '1000', 10);
+    const limit = Number.isFinite(requestedLimit)
+      ? Math.min(Math.max(requestedLimit, 1), 5000)
+      : 1000;
 
     const result = await pool.query(
       `SELECT region, state, city, product, sales, revenue, date, units_sold
        FROM sales_data
        ${whereSql}
        ORDER BY date DESC
-       LIMIT 500`,
-      params
+       LIMIT $${params.length + 1}`,
+      [...params, limit]
     );
 
     return res.json({ success: true, data: result.rows });
