@@ -1,12 +1,45 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { dashboardAPI } from '../services/api';
 
 const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeToggle }) => {
   const [dateRange, setDateRange] = useState('all');
+  const [referenceDate, setReferenceDate] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadReferenceDate = async () => {
+      try {
+        const response = await dashboardAPI.getData({});
+        const rows = Array.isArray(response.data?.data) ? response.data.data : [];
+        const sortedDates = rows
+          .map((row) => row.date)
+          .filter(Boolean)
+          .map((date) => new Date(date))
+          .filter((date) => !Number.isNaN(date.getTime()))
+          .sort((a, b) => a - b);
+
+        if (!cancelled && sortedDates.length > 0) {
+          setReferenceDate(sortedDates[sortedDates.length - 1]);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setReferenceDate(new Date());
+        }
+      }
+    };
+
+    loadReferenceDate();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleDateRangeChange = useCallback((range) => {
     setDateRange(range);
-    const today = new Date();
-    let startDate = new Date(today);
+    const endDate = referenceDate ? new Date(referenceDate) : new Date();
+    let startDate = new Date(endDate);
 
     switch (range) {
       case '7days':
@@ -19,7 +52,7 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         startDate.setDate(startDate.getDate() - 90);
         break;
       case 'ytd':
-        startDate = new Date(today.getFullYear(), 0, 1);
+        startDate = new Date(endDate.getFullYear(), 0, 1);
         break;
       case 'all':
         startDate = new Date('2020-01-01');
@@ -31,9 +64,9 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
     onFiltersChange({
       ...filters,
       startDate: startDate.toISOString().split('T')[0],
-      endDate: today.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
     });
-  }, [filters, onFiltersChange]);
+  }, [filters, onFiltersChange, referenceDate]);
 
   useEffect(() => {
     if (!filters.startDate && !filters.endDate) {
