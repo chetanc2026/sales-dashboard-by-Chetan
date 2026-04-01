@@ -15,6 +15,45 @@ const firstDefined = (...values) => values.find((value) => value !== undefined &
 
 const getPayload = (settled) => (settled.status === 'fulfilled' ? settled.value?.data : null);
 
+const formatDate = (dateValue) => {
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const getDataSummary = (rows) => {
+  const dates = rows
+    .map((row) => row?.date)
+    .filter(Boolean)
+    .map((date) => new Date(date))
+    .filter((date) => !Number.isNaN(date.getTime()))
+    .sort((left, right) => left - right);
+
+  if (!dates.length) {
+    return null;
+  }
+
+  const earliestDate = dates[0];
+  const latestDate = dates[dates.length - 1];
+  const spanDays = Math.max(
+    1,
+    Math.round((latestDate.getTime() - earliestDate.getTime()) / (1000 * 60 * 60 * 24)) + 1
+  );
+
+  return {
+    rowCount: rows.length,
+    earliestDate,
+    latestDate,
+    spanDays,
+  };
+};
+
 const DashboardGrid = ({ filters, darkMode }) => {
   const [kpis, setKpis] = useState(null);
   const [regionData, setRegionData] = useState([]);
@@ -22,19 +61,21 @@ const DashboardGrid = ({ filters, darkMode }) => {
   const [trendData, setTrendData] = useState([]);
   const [heatmapData, setHeatmapData] = useState([]);
   const [insights, setInsights] = useState([]);
+  const [dataSummary, setDataSummary] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [kpiRes, regionRes, prodRes, trendRes, heatmapRes, insightRes] = await Promise.allSettled([
+        const [kpiRes, regionRes, prodRes, trendRes, heatmapRes, insightRes, dataRes] = await Promise.allSettled([
           dashboardAPI.getKPIs(filters),
           dashboardAPI.getRegionSales(filters),
           dashboardAPI.getProductPerformance(filters),
           dashboardAPI.getTrends(filters),
           dashboardAPI.getGeoHeatmap(filters),
           dashboardAPI.getInsights(filters),
+          dashboardAPI.getData({ ...filters, limit: 1000 }),
         ]);
 
         const kpiPayload = getPayload(kpiRes);
@@ -43,6 +84,7 @@ const DashboardGrid = ({ filters, darkMode }) => {
         const trendPayload = getPayload(trendRes);
         const heatmapPayload = getPayload(heatmapRes);
         const insightPayload = getPayload(insightRes);
+        const dataPayload = getPayload(dataRes);
 
         const kpiData = firstDefined(kpiPayload?.kpis, kpiPayload?.data?.kpis, kpiPayload?.data);
         const regionDataValue = firstDefined(regionPayload?.data, regionPayload?.regions, regionPayload?.result);
@@ -50,6 +92,7 @@ const DashboardGrid = ({ filters, darkMode }) => {
         const trendDataValue = firstDefined(trendPayload?.data, trendPayload?.trends, trendPayload?.result);
         const heatmapDataValue = firstDefined(heatmapPayload?.data, heatmapPayload?.heatmap, heatmapPayload?.result);
         const insightDataValue = firstDefined(insightPayload?.insights, insightPayload?.data?.insights, insightPayload?.data);
+        const rawDataRows = asArray(firstDefined(dataPayload?.data, dataPayload?.rows, dataPayload?.result));
 
         setKpis(kpiData || null);
         setRegionData(asArray(regionDataValue));
@@ -57,8 +100,9 @@ const DashboardGrid = ({ filters, darkMode }) => {
         setTrendData(asArray(trendDataValue));
         setHeatmapData(asArray(heatmapDataValue));
         setInsights(asArray(insightDataValue));
+        setDataSummary(getDataSummary(rawDataRows));
 
-        const failedCount = [kpiRes, regionRes, prodRes, trendRes, heatmapRes, insightRes]
+        const failedCount = [kpiRes, regionRes, prodRes, trendRes, heatmapRes, insightRes, dataRes]
           .filter((item) => item.status === 'rejected').length;
 
         if (failedCount === 6) {
@@ -79,6 +123,12 @@ const DashboardGrid = ({ filters, darkMode }) => {
   if (loading) {
     return (
       <div className={`p-6 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+        {/* Summary Skeleton */}
+        <div className={`rounded-lg shadow-lg p-5 mb-6 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+          <div className={`h-5 w-56 rounded mb-2 animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+          <div className={`h-4 w-80 rounded animate-pulse ${darkMode ? 'bg-gray-700' : 'bg-gray-200'}`} />
+        </div>
+
         {/* KPI Skeletons */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
           <KPICardSkeleton darkMode={darkMode} />
@@ -110,6 +160,28 @@ const DashboardGrid = ({ filters, darkMode }) => {
 
   return (
     <div className={`p-6 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+      {dataSummary && (
+        <div
+          className={`rounded-2xl border p-5 mb-6 shadow-sm ${
+            darkMode ? 'bg-slate-800/80 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-900'
+          }`}
+        >
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-sm font-semibold uppercase tracking-wide text-sky-500">Data Coverage</p>
+              <h2 className="text-lg font-bold">
+                {dataSummary.rowCount} rows from {formatDate(dataSummary.earliestDate)} to {formatDate(dataSummary.latestDate)}
+              </h2>
+            </div>
+            <div className={`text-sm ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+              {dataSummary.spanDays <= 30
+                ? 'This dataset spans a short date range, so 7/30/90 day filters may look similar.'
+                : 'Date presets should now produce different views across the dataset.'}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* KPI Section */}
       {kpis && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
