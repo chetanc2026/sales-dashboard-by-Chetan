@@ -1,32 +1,90 @@
 import React, { useMemo } from 'react';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
-
-const INDIA_STATES_GEO_URL = 'https://raw.githubusercontent.com/deldersveld/topojson/master/countries/india/india-states.json';
+import indiaRegionsGeo from '../../data/indiaRegionsGeo.json';
+import { formatINRCompact } from '../../utils/numberFormat';
 
 const normalize = (value) => String(value || '').trim().toLowerCase().replace(/[^a-z]/g, '');
 
-const getStateName = (properties) => (
-  properties.st_nm
-  || properties.ST_NM
+const REGION_ALIASES = {
+  north: 'North',
+  south: 'South',
+  east: 'East',
+  west: 'West',
+  central: 'Central',
+  northeast: 'Northeast',
+  northcentral: 'Central',
+  northindia: 'North',
+  southindia: 'South',
+  eastindia: 'East',
+  westindia: 'West',
+};
+
+const STATE_TO_REGION = {
+  andhrapradesh: 'South',
+  arunachalpradesh: 'Northeast',
+  assam: 'Northeast',
+  bihar: 'East',
+  chhattisgarh: 'Central',
+  delhi: 'North',
+  goa: 'West',
+  gujarat: 'West',
+  haryana: 'North',
+  himachalpradesh: 'North',
+  jharkhand: 'East',
+  karnataka: 'South',
+  kerala: 'South',
+  madhyapradesh: 'Central',
+  maharashtra: 'West',
+  manipur: 'Northeast',
+  meghalaya: 'Northeast',
+  mizoram: 'Northeast',
+  nagaland: 'Northeast',
+  odisha: 'East',
+  orissa: 'East',
+  punjab: 'North',
+  rajasthan: 'North',
+  sikkim: 'Northeast',
+  tamilnadu: 'South',
+  telangana: 'South',
+  tripura: 'Northeast',
+  uttarpradesh: 'North',
+  uttarakhand: 'North',
+  westbengal: 'East',
+};
+
+const getFeatureName = (properties) => (
+  properties.name
+  || properties.NAME
   || properties.name
-  || properties.NAME_1
-  || properties.state
-  || properties.STATE
   || ''
 );
 
+const resolveRegion = (row) => {
+  const regionKey = normalize(row.region);
+  if (REGION_ALIASES[regionKey]) {
+    return REGION_ALIASES[regionKey];
+  }
+
+  const stateKey = normalize(row.state);
+  if (STATE_TO_REGION[stateKey]) {
+    return STATE_TO_REGION[stateKey];
+  }
+
+  return 'Central';
+};
+
 const HeatmapChart = ({ data, darkMode }) => {
-  const revenueByState = useMemo(() => {
+  const revenueByRegion = useMemo(() => {
     const map = new Map();
     for (const row of data || []) {
-      const key = normalize(row.state);
+      const key = resolveRegion(row);
       const revenue = Number(row.revenue) || 0;
       map.set(key, (map.get(key) || 0) + revenue);
     }
     return map;
   }, [data]);
 
-  const maxRevenue = Math.max(...Array.from(revenueByState.values()), 1);
+  const maxRevenue = Math.max(...Array.from(revenueByRegion.values()), 1);
 
   const getFillColor = (stateRevenue) => {
     if (!stateRevenue) {
@@ -46,16 +104,16 @@ const HeatmapChart = ({ data, darkMode }) => {
         <div>
           <div className="w-full h-[420px] rounded-lg overflow-hidden border border-slate-300/40">
             <ComposableMap projection="geoMercator" projectionConfig={{ center: [83, 23], scale: 900 }}>
-              <Geographies geography={INDIA_STATES_GEO_URL}>
+              <Geographies geography={indiaRegionsGeo}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
-                    const stateName = getStateName(geo.properties);
-                    const stateRevenue = revenueByState.get(normalize(stateName)) || 0;
+                    const regionName = getFeatureName(geo.properties);
+                    const regionRevenue = revenueByRegion.get(regionName) || 0;
                     return (
                       <Geography
                         key={geo.rsmKey}
                         geography={geo}
-                        fill={getFillColor(stateRevenue)}
+                        fill={getFillColor(regionRevenue)}
                         stroke={darkMode ? '#0f172a' : '#ffffff'}
                         strokeWidth={0.7}
                         style={{
@@ -64,7 +122,7 @@ const HeatmapChart = ({ data, darkMode }) => {
                           pressed: { outline: 'none' },
                         }}
                       >
-                        <title>{`${stateName || 'Unknown'}: ${Math.round(stateRevenue)}`}</title>
+                        <title>{`${regionName || 'Unknown'}: ${formatINRCompact(regionRevenue)}`}</title>
                       </Geography>
                     );
                   })

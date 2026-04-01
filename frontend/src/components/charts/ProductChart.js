@@ -1,5 +1,6 @@
 import React from 'react';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
+import { formatINRCompact } from '../../utils/numberFormat';
 
 const ProductChart = ({ data, darkMode }) => {
   const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#f87171', '#a78bfa'];
@@ -20,7 +21,7 @@ const ProductChart = ({ data, darkMode }) => {
               cx="50%"
               cy="50%"
               labelLine={false}
-              label={({ name, value }) => `${name}: ${value.toFixed(0)}`}
+              label={({ name, value }) => `${name}: ${formatINRCompact(value)}`}
               outerRadius={80}
               fill="#8884d8"
               dataKey="value"
@@ -29,7 +30,7 @@ const ProductChart = ({ data, darkMode }) => {
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
             </Pie>
-            <Tooltip formatter={(value) => `${Number(value).toFixed(0)}`} />
+            <Tooltip formatter={(value) => formatINRCompact(value)} />
           </PieChart>
         </ResponsiveContainer>
       ) : (

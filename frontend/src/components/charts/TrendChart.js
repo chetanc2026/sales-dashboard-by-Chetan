@@ -1,5 +1,6 @@
 import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { formatINRCompact } from '../../utils/numberFormat';
 
 const TrendChart = ({ data, darkMode }) => {
   const chartData = data.map((item) => ({
@@ -15,11 +16,11 @@ const TrendChart = ({ data, darkMode }) => {
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#444' : '#e5e7eb'} />
             <XAxis dataKey="month" stroke={darkMode ? '#999' : '#666'} />
-            <YAxis stroke={darkMode ? '#999' : '#666'} />
+            <YAxis stroke={darkMode ? '#999' : '#666'} tickFormatter={(value) => formatINRCompact(value)} />
             <Tooltip
               contentStyle={{ backgroundColor: darkMode ? '#333' : '#fff' }}
               labelStyle={{ color: darkMode ? '#fff' : '#000' }}
-              formatter={(value) => `${Number(value).toFixed(0)}`}
+              formatter={(value) => formatINRCompact(value)}
             />
             <Legend />
             <Line

@@ -1,5 +1,6 @@
 import React from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { formatIndianCompact, formatINRCompact } from '../../utils/numberFormat';
 
 const RegionChart = ({ data, darkMode }) => {
   return (
@@ -10,10 +11,13 @@ const RegionChart = ({ data, darkMode }) => {
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke={darkMode ? '#444' : '#e5e7eb'} />
             <XAxis dataKey="region" stroke={darkMode ? '#999' : '#666'} />
-            <YAxis stroke={darkMode ? '#999' : '#666'} />
+            <YAxis stroke={darkMode ? '#999' : '#666'} tickFormatter={(value) => formatIndianCompact(value)} />
             <Tooltip
               contentStyle={{ backgroundColor: darkMode ? '#333' : '#fff' }}
               labelStyle={{ color: darkMode ? '#fff' : '#000' }}
+              formatter={(value, name) => (
+                name === 'Revenue' ? formatINRCompact(value) : formatIndianCompact(value)
+              )}
             />
             <Legend />
             <Bar dataKey="revenue" fill="#3b82f6" name="Revenue" />
