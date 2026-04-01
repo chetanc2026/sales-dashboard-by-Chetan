@@ -1,5 +1,7 @@
 import React, { useMemo } from 'react';
+import { geoMercator } from 'd3-geo';
 import { ComposableMap, Geographies, Geography } from 'react-simple-maps';
+import { feature } from 'topojson-client';
 import indiaStatesTopo from '../../data/indiaStatesTopo.json';
 import { formatINRCompact } from '../../utils/numberFormat';
 
@@ -27,6 +29,11 @@ const getFeatureName = (properties) => (
 const normalizeStateKey = (value) => STATE_ALIASES[normalize(value)] || normalize(value);
 
 const HeatmapChart = ({ data, darkMode }) => {
+  const indiaFeatureCollection = useMemo(
+    () => feature(indiaStatesTopo, indiaStatesTopo.objects.default),
+    []
+  );
+
   const revenueByState = useMemo(() => {
     const map = new Map();
     for (const row of data || []) {
@@ -39,6 +46,13 @@ const HeatmapChart = ({ data, darkMode }) => {
     }
     return map;
   }, [data]);
+
+  const projection = useMemo(() => {
+    return geoMercator().fitExtent(
+      [[16, 16], [784, 404]],
+      indiaFeatureCollection
+    );
+  }, [indiaFeatureCollection]);
 
   const maxRevenue = Math.max(...Array.from(revenueByState.values()), 1);
 
@@ -59,7 +73,7 @@ const HeatmapChart = ({ data, darkMode }) => {
       {data && data.length > 0 ? (
         <div>
           <div className="w-full h-[420px] rounded-lg overflow-hidden border border-slate-300/40 bg-slate-50/40">
-            <ComposableMap projection="geoMercator" projectionConfig={{ center: [82, 22], scale: 680 }}>
+            <ComposableMap width={800} height={420} projection={projection}>
               <Geographies geography={indiaStatesTopo}>
                 {({ geographies }) =>
                   geographies.map((geo) => {
