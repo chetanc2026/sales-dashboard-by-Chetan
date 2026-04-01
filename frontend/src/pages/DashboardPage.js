@@ -3,6 +3,8 @@ import Sidebar from '../components/Sidebar';
 import TopBar from '../components/TopBar';
 import DashboardGrid from '../components/DashboardGrid';
 import UploadPage from './UploadPage';
+import ReportsModule from '../components/modules/ReportsModule';
+import AnalyticsModule from '../components/modules/AnalyticsModule';
 
 const PlaceholderPage = ({ title, description }) => (
   <div className="max-w-3xl mx-auto bg-white rounded-lg shadow-lg p-8 text-center mt-8">
@@ -52,21 +54,11 @@ const DashboardPage = ({ currentPage, onNavigate }) => {
     }
 
     if (currentPage === 'reports') {
-      return (
-        <PlaceholderPage
-          title="Reports"
-          description="Reports module is connected. Add export and scheduled reporting here."
-        />
-      );
+      return <ReportsModule filters={filters} darkMode={darkMode} />;
     }
 
     if (currentPage === 'analytics') {
-      return (
-        <PlaceholderPage
-          title="Analytics"
-          description="Analytics module is connected. Add advanced analysis views here."
-        />
-      );
+      return <AnalyticsModule filters={filters} darkMode={darkMode} />;
     }
 
     return <DashboardGrid filters={filters} darkMode={darkMode} />;
