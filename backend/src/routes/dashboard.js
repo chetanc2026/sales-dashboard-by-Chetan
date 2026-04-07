@@ -21,7 +21,35 @@ async function ensureTables() {
   `);
 }
 
-function buildFilter({ startDate, endDate, region, product }, userId) {
+function normalizeFilterValues(value) {
+  if (value === undefined || value === null) {
+    return [];
+  }
+
+  const rawValues = Array.isArray(value) ? value : [value];
+  return rawValues
+    .flatMap((entry) => String(entry).split(','))
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+}
+
+function applyDimensionFilter(fieldName, rawValue, conditions, params) {
+  const values = normalizeFilterValues(rawValue);
+  if (!values.length) {
+    return;
+  }
+
+  if (values.length === 1) {
+    params.push(values[0]);
+    conditions.push(`${fieldName} = $${params.length}`);
+    return;
+  }
+
+  params.push(values);
+  conditions.push(`${fieldName} = ANY($${params.length})`);
+}
+
+function buildFilter({ startDate, endDate, region, state, city, product }, userId) {
   const conditions = ['uploaded_by = $1'];
   const params = [userId];
 
@@ -33,14 +61,10 @@ function buildFilter({ startDate, endDate, region, product }, userId) {
     params.push(endDate);
     conditions.push(`date <= $${params.length}`);
   }
-  if (region) {
-    params.push(region);
-    conditions.push(`region = $${params.length}`);
-  }
-  if (product) {
-    params.push(product);
-    conditions.push(`product = $${params.length}`);
-  }
+  applyDimensionFilter('region', region, conditions, params);
+  applyDimensionFilter('state', state, conditions, params);
+  applyDimensionFilter('city', city, conditions, params);
+  applyDimensionFilter('product', product, conditions, params);
 
   return { whereSql: `WHERE ${conditions.join(' AND ')}`, params };
 }
