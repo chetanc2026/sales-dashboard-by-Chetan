@@ -6,7 +6,7 @@ import TrendChart from './charts/TrendChart';
 import HeatmapChart from './charts/HeatmapChart';
 import InsightsPanel from './InsightsPanel';
 import { KPICardSkeleton, ChartSkeleton, InsightsSkeleton } from './SkeletonLoaders';
-import { dashboardAPI, dataAPI } from '../services/api';
+import { dashboardAPI } from '../services/api';
 import { formatIndianCompact, formatINRCompact } from '../utils/numberFormat';
 import toast from 'react-hot-toast';
 
@@ -18,6 +18,16 @@ const getPayload = (settled) => (settled.status === 'fulfilled' ? settled.value?
 
 const hasItems = (value) => Array.isArray(value) && value.length > 0;
 
+const UPLOAD_FLAG_KEY = 'dashboardHasUploadedSalesData';
+
+const readUploadFlag = () => {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return localStorage.getItem(UPLOAD_FLAG_KEY) === 'true';
+};
+
 const DashboardGrid = ({ filters, darkMode }) => {
   const [kpis, setKpis] = useState(null);
   const [regionData, setRegionData] = useState([]);
@@ -25,17 +35,14 @@ const DashboardGrid = ({ filters, darkMode }) => {
   const [trendData, setTrendData] = useState([]);
   const [heatmapData, setHeatmapData] = useState([]);
   const [insights, setInsights] = useState([]);
-  const [hasUploadedData, setHasUploadedData] = useState(null);
+  const [hasUploadedData, setHasUploadedData] = useState(() => readUploadFlag());
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const uploadsResponse = await dataAPI.getUploads();
-        const uploadsPayload = uploadsResponse?.data;
-        const uploads = asArray(firstDefined(uploadsPayload?.uploads, uploadsPayload?.data, uploadsPayload?.rows));
-        const hasAnyUploads = uploads.length > 0;
+        const hasAnyUploads = readUploadFlag();
 
         setHasUploadedData(hasAnyUploads);
 
@@ -94,6 +101,17 @@ const DashboardGrid = ({ filters, darkMode }) => {
 
     fetchData();
   }, [filters]);
+
+  useEffect(() => {
+    const onDashboardDataUpdated = () => {
+      setHasUploadedData(true);
+    };
+
+    window.addEventListener('dashboard-data-updated', onDashboardDataUpdated);
+    return () => {
+      window.removeEventListener('dashboard-data-updated', onDashboardDataUpdated);
+    };
+  }, []);
 
   if (loading) {
     return (

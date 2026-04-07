@@ -8,6 +8,7 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
   const [loading, setLoading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
   const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20MB
+  const UPLOAD_FLAG_KEY = 'dashboardHasUploadedSalesData';
 
   React.useEffect(() => {
     const fetchSchema = async () => {
@@ -90,6 +91,7 @@ const UploadPage = ({ onUploadSuccess, embedded = false }) => {
     setLoading(true);
     try {
       const response = await dataAPI.uploadFile(file);
+      localStorage.setItem(UPLOAD_FLAG_KEY, 'true');
       toast.success(`Successfully uploaded ${response.data.rowsInserted} rows!`);
       window.dispatchEvent(new Event('dashboard-data-updated'));
       setFile(null);
