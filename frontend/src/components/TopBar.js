@@ -73,6 +73,73 @@ const summarizeFilters = (filters) => [
   ['Product', asArray(filters.product)],
 ].filter(([, values]) => values.length > 0);
 
+const buildReportScopeText = (filters) => {
+  const scopeParts = [];
+
+  if (filters?.startDate || filters?.endDate) {
+    scopeParts.push(`${filters.startDate || 'start'} to ${filters.endDate || 'end'}`);
+  }
+
+  const selectedFilters = summarizeFilters(filters);
+  if (selectedFilters.length > 0) {
+    scopeParts.push(selectedFilters.map(([label, values]) => `${label}: ${formatFilterLabel(label, values)}`).join(' | '));
+  }
+
+  return scopeParts.length > 0 ? scopeParts.join(' || ') : 'All data, no filters applied';
+};
+
+const drawFooter = (doc, pageWidth) => {
+  const totalPages = doc.internal.getNumberOfPages();
+
+  for (let page = 1; page <= totalPages; page += 1) {
+    doc.setPage(page);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(100);
+    doc.text(`Page ${page} of ${totalPages}`, pageWidth - 40, 812, { align: 'right' });
+    doc.text('sales dashboard by chetan', pageWidth / 2, 812, { align: 'center' });
+  }
+};
+
+const drawHorizontalBars = (doc, { title, rows, x, y, width, labelWidth = 150, barColor = [14, 165, 233] }) => {
+  const safeRows = rows.filter((row) => Number(row.value) > 0).slice(0, 6);
+  if (safeRows.length === 0) {
+    return y;
+  }
+
+  const maxValue = Math.max(...safeRows.map((row) => Number(row.value) || 0), 1);
+  const rowHeight = 28;
+
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(13);
+  doc.setTextColor(15, 23, 42);
+  doc.text(title, x, y);
+
+  let currentY = y + 18;
+  safeRows.forEach((row) => {
+    const value = Number(row.value) || 0;
+    const barWidth = Math.max(8, (value / maxValue) * (width - labelWidth - 70));
+    const label = row.label || 'N/A';
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.setTextColor(51, 65, 85);
+    doc.text(label, x, currentY + 9, { maxWidth: labelWidth - 10 });
+
+    doc.setFillColor(226, 232, 240);
+    doc.roundedRect(x + labelWidth, currentY, width - labelWidth - 50, 12, 5, 5, 'F');
+    doc.setFillColor(barColor[0], barColor[1], barColor[2]);
+    doc.roundedRect(x + labelWidth, currentY, barWidth, 12, 5, 5, 'F');
+
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(row.valueLabel || String(value), x + width - 10, currentY + 9, { align: 'right' });
+    currentY += rowHeight;
+  });
+
+  return currentY;
+};
+
 const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeToggle }) => {
   const [dateRange, setDateRange] = useState('all');
   const [referenceDate, setReferenceDate] = useState(null);
@@ -214,16 +281,6 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
 
       const doc = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
 
-      const addFooter = () => {
-        const totalPages = doc.internal.getNumberOfPages();
-        for (let page = 1; page <= totalPages; page += 1) {
-          doc.setPage(page);
-          doc.setFontSize(9);
-          doc.setTextColor(100);
-          doc.text(`Page ${page} of ${totalPages}`, 520, 810, { align: 'right' });
-        }
-      };
-
       const addTitle = (subtitle) => {
         doc.setFont('helvetica', 'bold');
         doc.setFontSize(20);
@@ -236,6 +293,7 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         doc.text(`Generated: ${new Date().toLocaleString('en-IN')}`, 40, 68);
         doc.text(`Export mode: ${subtitle}`, 40, 82);
         doc.text(`Active slicers: ${currentSlicerCount}`, 40, 96);
+        doc.text(`Scope: ${buildReportScopeText(filters)}`, 40, 110, { maxWidth: 515 });
       };
 
       const filterRows = selectedFilterSummary.length > 0
@@ -245,12 +303,14 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
       addTitle(mode === 'summary' ? 'Summary' : 'Detailed');
 
       autoTable(doc, {
-        startY: 112,
+        startY: 126,
         head: [['Metric', 'Value']],
         body: [
           ['Total Revenue', formatINRCompact(kpis.totalRevenue || kpis.revenue || 0)],
           ['Total Sales', formatIndianCompact(kpis.totalSales || 0)],
           ['Total Units', formatIndianCompact(kpis.totalUnits || 0)],
+          ['Unique Regions', formatIndianCompact(kpis.regionCount || 0)],
+          ['Unique Products', formatIndianCompact(kpis.productCount || 0)],
           ['Rows Exported', formatIndianCompact(rows.length)],
         ],
         theme: 'grid',
@@ -266,6 +326,74 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         headStyles: { fillColor: [30, 41, 59] },
         styles: { fontSize: 9 },
       });
+
+      if (mode === 'detail') {
+        doc.addPage();
+        addTitle('Visual snapshot');
+
+        const chartRows = rows.reduce((acc, row) => {
+          const region = row.region || 'Unknown';
+          const product = row.product || 'Unknown';
+          const regionEntry = acc.regionMap.get(region) || { label: region, value: 0 };
+          const productEntry = acc.productMap.get(product) || { label: product, value: 0 };
+
+          regionEntry.value += Number(row.revenue || 0);
+          productEntry.value += Number(row.revenue || 0);
+          acc.regionMap.set(region, regionEntry);
+          acc.productMap.set(product, productEntry);
+          return acc;
+        }, { regionMap: new Map(), productMap: new Map() });
+
+        const topRegions = Array.from(chartRows.regionMap.values())
+          .sort((left, right) => right.value - left.value)
+          .slice(0, 6)
+          .map((row) => ({
+            label: row.label,
+            value: row.value,
+            valueLabel: formatINRCompact(row.value),
+          }));
+        const topProducts = Array.from(chartRows.productMap.values())
+          .sort((left, right) => right.value - left.value)
+          .slice(0, 6)
+          .map((row) => ({
+            label: row.label,
+            value: row.value,
+            valueLabel: formatINRCompact(row.value),
+          }));
+
+        let sectionY = 132;
+        sectionY = drawHorizontalBars(doc, {
+          title: 'Top regions by revenue',
+          rows: topRegions,
+          x: 40,
+          y: sectionY,
+          width: 520,
+          barColor: [37, 99, 235],
+        }) + 32;
+
+        sectionY = drawHorizontalBars(doc, {
+          title: 'Top products by revenue',
+          rows: topProducts,
+          x: 40,
+          y: sectionY,
+          width: 520,
+          barColor: [20, 184, 166],
+        }) + 24;
+
+        autoTable(doc, {
+          startY: sectionY,
+          head: [['Data guide', 'Meaning']],
+          body: [
+            ['Revenue', 'Total monetary value for the selected scope'],
+            ['Sales', 'Number of units sold or transactions depending on source sheet'],
+            ['Filters', 'Only the currently selected slicers and date range are included'],
+          ],
+          theme: 'striped',
+          headStyles: { fillColor: [30, 41, 59] },
+          styles: { fontSize: 9 },
+          margin: { left: 40, right: 40 },
+        });
+      }
 
       if (regions.length > 0) {
         doc.addPage();
@@ -323,7 +451,7 @@ const TopBar = ({ onMenuClick, filters, onFiltersChange, darkMode, onDarkModeTog
         });
       }
 
-      addFooter();
+      drawFooter(doc, 595.28);
       doc.save(mode === 'summary' ? 'sales-dashboard-summary.pdf' : 'sales-dashboard-report.pdf');
       toast.success(mode === 'summary' ? 'Summary PDF downloaded' : 'PDF report downloaded');
     } catch (error) {

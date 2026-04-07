@@ -76,12 +76,33 @@ const aggregateByMonth = (rows) => {
     }));
 };
 
+const summarizeScope = (filters) => {
+  const parts = [];
+  const selected = [
+    ['Region', asArray(filters?.region)],
+    ['State', asArray(filters?.state)],
+    ['City', asArray(filters?.city)],
+    ['Product', asArray(filters?.product)],
+  ].filter(([, values]) => values.length > 0);
+
+  if (filters?.startDate || filters?.endDate) {
+    parts.push(`${filters.startDate || 'start'} to ${filters.endDate || 'end'}`);
+  }
+
+  if (selected.length > 0) {
+    parts.push(selected.map(([label, values]) => `${label}: ${values.slice(0, 2).join(', ')}${values.length > 2 ? ` +${values.length - 2}` : ''}`).join(' | '));
+  }
+
+  return parts.length > 0 ? parts.join(' || ') : 'All data in scope';
+};
+
 const ReportsModule = ({ filters, darkMode }) => {
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState([]);
   const [kpis, setKpis] = useState(null);
   const [regions, setRegions] = useState([]);
   const [products, setProducts] = useState([]);
+  const scopeText = useMemo(() => summarizeScope(filters), [filters]);
 
   useEffect(() => {
     let mounted = true;
@@ -217,32 +238,35 @@ const ReportsModule = ({ filters, darkMode }) => {
 
   return (
     <div className={`p-6 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-      <div className={`rounded-3xl p-6 shadow-lg border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'}`}>
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-6">
+      <div className={`mx-auto max-w-7xl rounded-3xl p-6 shadow-lg border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'}`}>
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between mb-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-sky-500">Reports Module</p>
             <h2 className="text-3xl font-black mt-1">Executive summary and export-ready reporting</h2>
             <p className={`mt-2 max-w-2xl ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
               Review current performance, export the source rows, and generate a concise summary for management updates.
             </p>
+            <p className={`mt-3 text-xs font-semibold uppercase tracking-[0.18em] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+              Scope: {scopeText}
+            </p>
           </div>
 
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 lg:justify-end">
             <button
               onClick={exportCsv}
-              className="px-4 py-2 rounded-lg bg-sky-600 text-white font-semibold hover:bg-sky-700 transition"
+              className="px-4 py-2 rounded-xl bg-sky-600 text-white font-semibold hover:bg-sky-700 transition shadow-sm"
             >
               Export CSV
             </button>
             <button
               onClick={downloadSummary}
-              className={`px-4 py-2 rounded-lg font-semibold border transition ${darkMode ? 'border-slate-600 bg-slate-800 hover:bg-slate-700' : 'border-slate-300 bg-white hover:bg-slate-50'}`}
+              className={`px-4 py-2 rounded-xl font-semibold border transition shadow-sm ${darkMode ? 'border-slate-600 bg-slate-800 hover:bg-slate-700' : 'border-slate-300 bg-white hover:bg-slate-50'}`}
             >
               Download Summary
             </button>
             <button
               onClick={exportReportJson}
-              className={`px-4 py-2 rounded-lg font-semibold border transition ${darkMode ? 'border-slate-600 bg-slate-800 hover:bg-slate-700' : 'border-slate-300 bg-white hover:bg-slate-50'}`}
+              className={`px-4 py-2 rounded-xl font-semibold border transition shadow-sm ${darkMode ? 'border-slate-600 bg-slate-800 hover:bg-slate-700' : 'border-slate-300 bg-white hover:bg-slate-50'}`}
             >
               Export JSON
             </button>
@@ -250,7 +274,9 @@ const ReportsModule = ({ filters, darkMode }) => {
         </div>
 
         {loading ? (
-          <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>Loading report data...</p>
+          <div className={`rounded-2xl border p-6 ${darkMode ? 'border-slate-700 bg-slate-800/40 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+            Loading report data...
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -260,7 +286,7 @@ const ReportsModule = ({ filters, darkMode }) => {
               <MetricCard label="Regions Covered" value={formatIndianCompact(reportSummary.regionsCovered)} darkMode={darkMode} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6 items-stretch">
               <DetailCard
                 title="Top Region"
                 value={reportSummary.topRegion?.region || 'N/A'}
@@ -302,7 +328,7 @@ const ReportsModule = ({ filters, darkMode }) => {
               />
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mt-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mt-6 items-stretch">
               <ChartCard title="Monthly Revenue" darkMode={darkMode}>
                 <ResponsiveContainer width="100%" height={260}>
                   <AreaChart data={chartData.monthlyRevenue}>
@@ -355,14 +381,14 @@ const ReportsModule = ({ filters, darkMode }) => {
 };
 
 const MetricCard = ({ label, value, darkMode }) => (
-  <div className={`rounded-2xl p-4 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+  <div className={`rounded-2xl p-4 border h-full ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
     <p className={`text-xs uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
     <p className="mt-2 text-2xl font-black">{value}</p>
   </div>
 );
 
 const DetailCard = ({ title, value, note, darkMode }) => (
-  <div className={`rounded-2xl p-5 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+  <div className={`rounded-2xl p-5 border h-full ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
     <p className={`text-sm font-semibold ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>{title}</p>
     <p className="mt-2 text-2xl font-black break-words">{value}</p>
     <p className={`mt-2 text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>{note}</p>
@@ -370,7 +396,7 @@ const DetailCard = ({ title, value, note, darkMode }) => (
 );
 
 const ListPanel = ({ title, items, darkMode }) => (
-  <div className={`rounded-2xl p-5 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+  <div className={`rounded-2xl p-5 border h-full ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
     <h3 className="text-lg font-bold mb-4">{title}</h3>
     <div className="space-y-3">
       {items.length > 0 ? items.map((item) => (
@@ -389,7 +415,7 @@ const ListPanel = ({ title, items, darkMode }) => (
 );
 
 const ChartCard = ({ title, darkMode, children }) => (
-  <div className={`rounded-2xl p-5 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+  <div className={`rounded-2xl p-5 border h-full ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
     <h3 className="text-lg font-bold mb-4">{title}</h3>
     {children}
   </div>

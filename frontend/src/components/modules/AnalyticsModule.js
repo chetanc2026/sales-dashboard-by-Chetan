@@ -21,12 +21,33 @@ import { formatIndianCompact, formatINRCompact } from '../../utils/numberFormat'
 const firstDefined = (...values) => values.find((value) => value !== undefined && value !== null);
 const asArray = (value) => (Array.isArray(value) ? value : []);
 
+const summarizeScope = (filters) => {
+  const segments = [];
+  const selected = [
+    ['Region', asArray(filters?.region)],
+    ['State', asArray(filters?.state)],
+    ['City', asArray(filters?.city)],
+    ['Product', asArray(filters?.product)],
+  ].filter(([, values]) => values.length > 0);
+
+  if (filters?.startDate || filters?.endDate) {
+    segments.push(`${filters.startDate || 'start'} to ${filters.endDate || 'end'}`);
+  }
+
+  if (selected.length > 0) {
+    segments.push(selected.map(([label, values]) => `${label}: ${values.slice(0, 2).join(', ')}${values.length > 2 ? ` +${values.length - 2}` : ''}`).join(' | '));
+  }
+
+  return segments.length > 0 ? segments.join(' || ') : 'All analytics scope';
+};
+
 const AnalyticsModule = ({ filters, darkMode }) => {
   const [loading, setLoading] = useState(true);
   const [trendData, setTrendData] = useState([]);
   const [regionData, setRegionData] = useState([]);
   const [productData, setProductData] = useState([]);
   const [kpis, setKpis] = useState(null);
+  const scopeText = useMemo(() => summarizeScope(filters), [filters]);
 
   useEffect(() => {
     let mounted = true;
@@ -114,17 +135,28 @@ const AnalyticsModule = ({ filters, darkMode }) => {
 
   return (
     <div className={`p-6 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
-      <div className={`rounded-3xl p-6 shadow-lg border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'}`}>
-        <div className="mb-6">
+      <div className={`mx-auto max-w-7xl rounded-3xl p-6 shadow-lg border ${darkMode ? 'bg-slate-900 border-slate-700 text-white' : 'bg-white border-slate-200'}`}>
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
           <p className="text-sm font-semibold uppercase tracking-wide text-sky-500">Analytics Module</p>
           <h2 className="text-3xl font-black mt-1">Deeper performance analysis</h2>
           <p className={`mt-2 max-w-2xl ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
             Spot trend direction, compare geography and product mix, and evaluate whether recent momentum is strengthening or cooling.
           </p>
+          <p className={`mt-3 text-xs font-semibold uppercase tracking-[0.18em] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+            Scope: {scopeText}
+          </p>
+          </div>
+
+          <div className={`rounded-2xl border px-4 py-3 text-sm ${darkMode ? 'border-slate-700 bg-slate-800/60 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+            Live analytics synced to dashboard slicers
+          </div>
         </div>
 
         {loading ? (
-          <p className={darkMode ? 'text-slate-300' : 'text-slate-600'}>Loading analytics data...</p>
+          <div className={`rounded-2xl border p-6 ${darkMode ? 'border-slate-700 bg-slate-800/40 text-slate-300' : 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+            Loading analytics data...
+          </div>
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
@@ -134,13 +166,13 @@ const AnalyticsModule = ({ filters, darkMode }) => {
               <MetricCard label="KPI Revenue" value={formatINRCompact(kpis?.totalRevenue || 0)} darkMode={darkMode} />
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6 items-stretch">
               <DetailCard title="Top Region" value={analytics.topRegion?.region || 'N/A'} note={analytics.topRegion ? formatINRCompact(analytics.topRegion.revenue) : 'No region data'} darkMode={darkMode} />
               <DetailCard title="Top Product" value={analytics.topProduct?.product || 'N/A'} note={analytics.topProduct ? formatINRCompact(analytics.topProduct.revenue) : 'No product data'} darkMode={darkMode} />
               <DetailCard title="Current KPI" value={kpis ? 'Live' : 'Fallback'} note="Analytics syncs with dashboard filters" darkMode={darkMode} />
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-6 items-stretch">
               <ChartCard title="Revenue Trend" darkMode={darkMode}>
                 <ResponsiveContainer width="100%" height={320}>
                   <AreaChart data={analytics.chartTrends}>
@@ -171,7 +203,7 @@ const AnalyticsModule = ({ filters, darkMode }) => {
               </ChartCard>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 items-stretch">
               <ChartCard title="Top Regions by Revenue" darkMode={darkMode}>
                 <ResponsiveContainer width="100%" height={320}>
                   <BarChart data={analytics.chartRegions} layout="vertical" margin={{ left: 20 }}>
@@ -213,14 +245,14 @@ const AnalyticsModule = ({ filters, darkMode }) => {
 };
 
 const MetricCard = ({ label, value, darkMode }) => (
-  <div className={`rounded-2xl p-4 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
+  <div className={`rounded-2xl p-4 border h-full ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-slate-50 border-slate-200'}`}>
     <p className={`text-xs uppercase tracking-wide ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>{label}</p>
     <p className="mt-2 text-2xl font-black">{value}</p>
   </div>
 );
 
 const DetailCard = ({ title, value, note, darkMode }) => (
-  <div className={`rounded-2xl p-5 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+  <div className={`rounded-2xl p-5 border h-full ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
     <p className={`text-sm font-semibold ${darkMode ? 'text-slate-300' : 'text-slate-500'}`}>{title}</p>
     <p className="mt-2 text-2xl font-black break-words">{value}</p>
     <p className={`mt-2 text-sm ${darkMode ? 'text-slate-400' : 'text-slate-600'}`}>{note}</p>
@@ -228,7 +260,7 @@ const DetailCard = ({ title, value, note, darkMode }) => (
 );
 
 const ChartCard = ({ title, darkMode, children }) => (
-  <div className={`rounded-2xl p-5 border ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
+  <div className={`rounded-2xl p-5 border h-full ${darkMode ? 'bg-slate-800 border-slate-700' : 'bg-white border-slate-200'}`}>
     <h3 className="text-lg font-bold mb-4">{title}</h3>
     {children}
   </div>
